@@ -57,7 +57,14 @@ func main() {
 				}
 			}
 
-			lines, err := countLOC(fset, filepath.Join(abspath, path))
+			fullpath := filepath.Join(abspath, path)
+			src, err := os.ReadFile(fullpath)
+			if err != nil {
+				return err
+			}
+			fsetFile := fset.AddFile(fullpath, fset.Base(), len(src))
+
+			lines, err := countLOC(fset, fsetFile, src)
 			if err != nil {
 				return err
 			}
@@ -68,7 +75,12 @@ func main() {
 			panic(err)
 		}
 	} else if strings.HasSuffix(abspath, ".go") {
-		lines, err := countLOC(fset, abspath)
+		src, err := os.ReadFile(abspath)
+		if err != nil {
+			panic(err)
+		}
+		fsetFile := fset.AddFile(abspath, fset.Base(), len(src))
+		lines, err := countLOC(fset, fsetFile, src)
 		if err != nil {
 			panic(err)
 		}
@@ -78,15 +90,10 @@ func main() {
 	fmt.Printf("%d lines of code\n", loc)
 }
 
-func countLOC(fset *token.FileSet, path string) (int, error) {
-	src, err := os.ReadFile(path)
-	if err != nil {
-		return 0, err
-	}
-	fsetFile := fset.AddFile(path, fset.Base(), len(src))
+func countLOC(fset *token.FileSet, file *token.File, src []byte) (int, error) {
 	lines := make(map[int]struct{})
 	var s scanner.Scanner
-	s.Init(fsetFile, src, nil, 0)
+	s.Init(file, src, nil, 0)
 	for {
 		pos, tok, _ := s.Scan()
 		if tok == token.EOF {
